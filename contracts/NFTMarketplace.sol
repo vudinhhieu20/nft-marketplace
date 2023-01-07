@@ -326,10 +326,21 @@ contract NFTMarketplace is ERC721URIStorage {
     /* Returns all unsold auction items */
     function fetchAuctionItems() public view returns (MarketItem[] memory) {
         uint256 itemCount = _tokenIds.current();
-        uint256 unsoldItemCount = _tokenIds.current() - _itemsSold.current();
+
+        uint256 auctionItemCount = 0;
+
+        for (uint256 i = 0; i < itemCount; i++) {
+            if (
+                idToMarketItem[i + 1].owner == address(this) &&
+                idToMarketItem[i + 1].auction == true
+            ) {
+                auctionItemCount += 1;
+            }
+        }
+
         uint256 currentIndex = 0;
 
-        MarketItem[] memory items = new MarketItem[](unsoldItemCount);
+        MarketItem[] memory items = new MarketItem[](auctionItemCount);
         for (uint256 i = 0; i < itemCount; i++) {
             if (
                 idToMarketItem[i + 1].owner == address(this) &&
@@ -380,7 +391,7 @@ contract NFTMarketplace is ERC721URIStorage {
         uint256 endTime = idToMarketItem[tokenId].endTime;
         bool ended = idToMarketItem[tokenId].ended;
 
-        require(block.timestamp >= endTime, "Auction time has not ended yet");
+        // require(block.timestamp >= endTime, "Auction time has not ended yet");
         require(!ended, "Auction has ended");
 
         idToMarketItem[tokenId].ended = true;
