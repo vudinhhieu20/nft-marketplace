@@ -29,7 +29,6 @@ export default function Home() {
       NFTMarketplace.abi,
       signer
     );
-
     const listItem = await contract.fetchMarketItems();
     const items = await Promise.all(
       listItem.map(async (i) => {
@@ -74,16 +73,16 @@ export default function Home() {
     loadNfts();
   }
 
-  if (loading)
-    return (
-      <Backdrop
-        sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
-        open={loading}
-        onClick={console.log}
-      >
-        <CircularProgress color="inherit" />
-      </Backdrop>
-    );
+  // if (loading)
+  //   return (
+  //     <Backdrop
+  //       sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
+  //       open={loading}
+  //       onClick={console.log}
+  //     >
+  //       <CircularProgress color="inherit" />
+  //     </Backdrop>
+  //   );
   return (
     <div>
       <div className="flex justify-center">

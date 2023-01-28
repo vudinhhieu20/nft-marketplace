@@ -19,6 +19,9 @@ export default function App({ Component, pageProps }) {
           <Link href="/dashboard">
             <p className="mr-4 text-pink-500">Dashboard</p>
           </Link>
+          <Link href="/auction">
+            <p className="mr-4 text-pink-500">Auction</p>
+          </Link>
         </div>
       </nav>
       <Component {...pageProps} />

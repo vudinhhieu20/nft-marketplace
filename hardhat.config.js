@@ -7,6 +7,9 @@ module.exports = {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
+    localhost: {
+      allowUnlimitedContractSize: true,
+    },
   },
   solidity: {
     version: "0.8.17",

@@ -96,7 +96,9 @@ describe("NFTMarket_Auction_Transaction", function () {
     const testPrice = ethers.utils.parseUnits("1000", "wei");
     const testBid1 = ethers.utils.parseUnits("2000", "wei");
     const testBid2 = ethers.utils.parseUnits("3000", "wei");
-    const testEndTime = Date.now() + 3000;
+    const currentTime = new Date().getTime();
+    console.log("Current time: ", (currentTime - (currentTime % 1000)) / 1000);
+    const testEndTime = (currentTime - (currentTime % 1000)) / 1000 + 3;
     await nftMarketplace
       .connect(addr1)
       .createToken(
@@ -139,12 +141,30 @@ describe("NFTMarket_Auction_Transaction", function () {
     console.log("Pending bid: ", pendingBid);
 
     /**
+     * Query list auction items
+     * Expect: Trong ds đấu giá còn sp nhưng trong trạng thái chờ rút tiền
+     */
+    let pendingAuction = await nftMarketplace
+      .connect(addr3)
+      .fetchAuctionItems();
+
+    await expect(pendingAuction.length).to.equal(1);
+
+    /**
      * withdraw pending bid
      * Expect: Addr2 nhận lại tiền đấu giá từ contract
      */
     await expect(
       await nftMarketplace.connect(addr2).withdraw(1)
     ).to.changeEtherBalances([addr2, nftMarketplace], [testBid1, -testBid1]);
+
+    /**
+     * Query list auction items
+     * Expect: Trong ds đấu giá không còn sp
+     */
+    pendingAuction = await nftMarketplace.connect(addr3).fetchAuctionItems();
+
+    await expect(pendingAuction.length).to.equal(0);
 
     /* query for item has purchased by addr3 who won auction */
     let items = await nftMarketplace.connect(addr3).fetchMyNFTs();

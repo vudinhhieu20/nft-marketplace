@@ -11,6 +11,7 @@ import NFTMarketplace from "../artifacts/contracts/NFTMarketplace.sol/NFTMarketp
 
 export default function CreatorDashboard() {
   const [nfts, setNfts] = useState([]);
+  const [createdNfts, setCreatedNfts] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     loadNFTs();
@@ -49,6 +50,29 @@ export default function CreatorDashboard() {
 
     setNfts(items);
     setLoading(false);
+    console.log(items);
+
+    const createdItems = await contract.fetchCreatedItems();
+
+    const createdListItems = await Promise.all(
+      createdItems.map(async (i) => {
+        const tokenUri = await contract.tokenURI(i.tokenId);
+        const meta = await axios.get(tokenUri);
+        let price = ethers.utils.formatUnits(i.price.toString(), "ether");
+        let item = {
+          price,
+          tokenId: i.tokenId.toNumber(),
+          seller: i.seller,
+          owner: i.owner,
+          image: meta.data.image,
+        };
+        return item;
+      })
+    );
+
+    setCreatedNfts(createdListItems);
+    setLoading(false);
+    console.log(items);
   }
 
   if (loading)
@@ -65,7 +89,7 @@ export default function CreatorDashboard() {
   return (
     <div>
       <div className="p-4">
-        <h2 className="text-2xl py-2">Items Listed</h2>
+        <h2 className="text-2xl py-2">Tranh đang bán hoặc đấu giá</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
           {nfts.map((nft, i) => (
             <div key={i} className="border shadow rounded-xl overflow-hidden">
@@ -75,6 +99,17 @@ export default function CreatorDashboard() {
                   Price - {nft.price} Eth
                 </p>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4">
+        <h2 className="text-2xl py-2">Tranh đã tạo</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {createdNfts.map((nft, i) => (
+            <div key={i} className="border shadow rounded-xl overflow-hidden">
+              <img src={nft.image} className="rounded" alt="NFT image" />
             </div>
           ))}
         </div>

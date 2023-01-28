@@ -17,6 +17,11 @@ export default function CreateItem() {
   const [price, setPrice] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [open, setOpen] = useState(false);
+  const [checkAuction, setCheckAuction] = useState(false);
+  const [buttonText, setButtonText] = useState("Đăng bán sản phẩm");
+  const [endTime, setEndTime] = useState(null);
+
   const router = useRouter();
   const [formInput, updateFormInput] = useState({
     price: "",
@@ -57,6 +62,19 @@ export default function CreateItem() {
   }
 
   async function listNFTForSale() {
+    if (
+      !formInput.name ||
+      !formInput.description ||
+      !formInput.price ||
+      !fileUrl
+    ) {
+      alert("Thông tin sản phẩm không được để trống");
+      return;
+    }
+    if (checkAuction && !endTime) {
+      alert("Thông tin sản phẩm không được để trống");
+      return;
+    }
     const url = await uploadToIPFS();
     const web3Modal = new Web3Modal();
     const connection = await web3Modal.connect();
@@ -72,13 +90,32 @@ export default function CreateItem() {
     );
     let listingPrice = await contract.getListingPrice();
     listingPrice = listingPrice.toString();
-    let transaction = await contract.createToken(url, price, false, 0, {
-      value: listingPrice,
-    });
+    let transaction = await contract.createToken(
+      url,
+      price,
+      checkAuction,
+      endTime / 1000,
+      {
+        value: listingPrice,
+      }
+    );
     await transaction.wait();
 
     router.push("/");
   }
+
+  const createAuction = (e) => {
+    console.log(e.target.checked);
+    setOpen(e.target.checked);
+
+    if (e.target.checked) {
+      setButtonText("Đấu giá sản phẩm");
+      setCheckAuction(true);
+    } else {
+      setButtonText("Đăng bán sản phẩm");
+      setCheckAuction(false);
+    }
+  };
   return (
     <div className="flex justify-center">
       <div className="w-1/2 flex flex-col pb-12">
@@ -113,11 +150,58 @@ export default function CreateItem() {
             alt="preview image"
           />
         )}
+
+        <div class="flex items-center">
+          <input
+            // checked
+            id="checked-auction"
+            type="checkbox"
+            value=""
+            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            onClick={(e) => createAuction(e)}
+          ></input>
+          <label
+            for="checked-auction"
+            class="ml-2 text-base font-medium text-gray-900 dark:text-gray-300"
+          >
+            Đấu giá sản phẩm
+          </label>
+        </div>
+
+        {open === true && (
+          <>
+            <div class="m-2"></div>
+            <br />
+
+            <p class="text-gray-400">Thời điểm kết thúc đấu giá </p>
+            <input
+              type="datetime-local"
+              className="mt-2 border rounded p-4"
+              placeholder={"Thời gian kết thúc"}
+              onChange={(e) => {
+                const date = new Date(e.target.value);
+                console.log(date.getTime());
+                setEndTime(date.getTime());
+              }}
+            />
+            <div></div>
+            <br />
+            {/* <input
+              className="mt-2 border rounded p-4"
+              placeholder={"Giá khởi điểm"}
+            /> */}
+            <p class="text-gray-400">
+              {" "}
+              Khi đấu giá, giá khởi điểm của sản phẩm được đặt bằng giá tiền
+            </p>
+          </>
+        )}
+
         <button
           onClick={listNFTForSale}
           className="font-bold mt-4 bg-pink-500 text-white rounded p-4 shadow-lg"
         >
-          Create NFT
+          {buttonText}
         </button>
       </div>
     </div>

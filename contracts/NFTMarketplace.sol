@@ -17,6 +17,9 @@ contract NFTMarketplace is ERC721URIStorage {
 
     mapping(uint256 => MarketItem) private idToMarketItem;
     mapping(uint256 => mapping(address => uint256)) public bids;
+    mapping(uint256 => uint256) public trackingBidderCount;
+    mapping(uint256 => mapping(uint256 => address))
+        public trackingBidderAddress;
 
     struct MarketItem {
         uint256 tokenId;
@@ -45,6 +48,8 @@ contract NFTMarketplace is ERC721URIStorage {
         uint256 highestBid,
         address highestBidder
     );
+
+    event Withdraw(address sender, uint256 amount, bool bidder);
 
     constructor() ERC721("Metaverse Tokens", "METT") {
         owner = payable(msg.sender);
@@ -331,7 +336,7 @@ contract NFTMarketplace is ERC721URIStorage {
 
         for (uint256 i = 0; i < itemCount; i++) {
             if (
-                idToMarketItem[i + 1].owner == address(this) &&
+                // idToMarketItem[i + 1].owner == address(this) &&
                 idToMarketItem[i + 1].auction == true
             ) {
                 auctionItemCount += 1;
@@ -343,7 +348,7 @@ contract NFTMarketplace is ERC721URIStorage {
         MarketItem[] memory items = new MarketItem[](auctionItemCount);
         for (uint256 i = 0; i < itemCount; i++) {
             if (
-                idToMarketItem[i + 1].owner == address(this) &&
+                // idToMarketItem[i + 1].owner == address(this) &&
                 idToMarketItem[i + 1].auction == true
             ) {
                 uint256 currentId = i + 1;
@@ -361,7 +366,7 @@ contract NFTMarketplace is ERC721URIStorage {
         uint256 highestBid = idToMarketItem[tokenId].highestBid;
         address highestBidder = idToMarketItem[tokenId].highestBidder;
 
-        require(block.timestamp < endTime, "Auction has ended");
+        require(uint256(block.timestamp) < endTime, "Auction has ended");
         require(
             msg.value > highestBid,
             "Value must be greater than current highest bid"
@@ -369,6 +374,26 @@ contract NFTMarketplace is ERC721URIStorage {
 
         if (highestBidder != address(0)) {
             bids[tokenId][highestBidder] += highestBid;
+
+            if (trackingBidderCount[tokenId] == 0) {
+                trackingBidderCount[tokenId] += 1;
+                uint256 curentIndex = trackingBidderCount[tokenId];
+                trackingBidderAddress[tokenId][curentIndex] = highestBidder;
+            } else {
+                uint256 bidderCount = trackingBidderCount[tokenId];
+                // uint256 senderIndex = 0;
+
+                for (uint256 i = 0; i < bidderCount; i++) {
+                    if (
+                        trackingBidderAddress[tokenId][i + 1] == highestBidder
+                    ) {
+                        break;
+                    }
+                }
+                trackingBidderCount[tokenId] += 1;
+                uint256 curentIndex = trackingBidderCount[tokenId];
+                trackingBidderAddress[tokenId][curentIndex] = highestBidder;
+            }
         }
 
         idToMarketItem[tokenId].highestBidder = payable(msg.sender);
@@ -379,22 +404,60 @@ contract NFTMarketplace is ERC721URIStorage {
 
     /* Withdraw when sender are not highestBidder */
     function withdraw(uint256 tokenId) public payable {
-        uint256 balance = bids[tokenId][msg.sender];
-        bids[tokenId][msg.sender] = 0;
-        payable(msg.sender).transfer(balance);
+        uint256 bidderCount = trackingBidderCount[tokenId];
+        uint256 senderIndex = 0;
+
+        for (uint256 i = 0; i < bidderCount; i++) {
+            if (trackingBidderAddress[tokenId][i + 1] == msg.sender) {
+                senderIndex = i + 1;
+                uint256 balance = bids[tokenId][msg.sender];
+                bids[tokenId][msg.sender] = 0;
+                payable(msg.sender).transfer(balance);
+                emit Withdraw(msg.sender, balance, true);
+                break;
+            }
+        }
+
+        if (senderIndex == 0) {
+            emit Withdraw(msg.sender, 0, false);
+            return;
+        }
+
+        /**
+         * Check all bidder withdraw their bid
+         */
+        bool withDrawAll = true;
+
+        for (uint256 i = 0; i < bidderCount; i++) {
+            address currentAddress = trackingBidderAddress[tokenId][i + 1];
+            if (bids[tokenId][currentAddress] != 0) {
+                withDrawAll = false;
+                break;
+            }
+        }
+
+        if (withDrawAll) {
+            idToMarketItem[tokenId].auction = false;
+        }
 
         // emit Withdraw(msg.sender, bal);
     }
 
     /* End auction */
     function endAuction(uint256 tokenId) external {
+        uint256 bidderCount = trackingBidderCount[tokenId];
+
         uint256 endTime = idToMarketItem[tokenId].endTime;
         bool ended = idToMarketItem[tokenId].ended;
 
-        // require(block.timestamp >= endTime, "Auction time has not ended yet");
+        // require(
+        //     uint256(block.timestamp) >= endTime,
+        //     "Auction time has not ended yet"
+        // );
         require(!ended, "Auction has ended");
 
         idToMarketItem[tokenId].ended = true;
+        _itemsSold.increment();
         address seller = idToMarketItem[tokenId].seller;
         address highestBidder = idToMarketItem[tokenId].highestBidder;
         uint256 highestBid = idToMarketItem[tokenId].highestBid;
@@ -403,11 +466,29 @@ contract NFTMarketplace is ERC721URIStorage {
             idToMarketItem[tokenId].owner = payable(highestBidder);
             idToMarketItem[tokenId].sold = true;
             idToMarketItem[tokenId].seller = payable(address(0));
-            idToMarketItem[tokenId].auction = false;
+            idToMarketItem[tokenId].auction = true;
             idToMarketItem[tokenId].highestBidder = payable(address(0));
             idToMarketItem[tokenId].highestBid = 0;
+            idToMarketItem[tokenId].price = highestBid;
             _safeTransfer(address(this), highestBidder, tokenId, "");
             payable(seller).transfer(highestBid);
+
+            /**
+             * Check all bidder withdraw their bid
+             */
+            bool withDrawAll = true;
+
+            for (uint256 i = 0; i < bidderCount; i++) {
+                address currentAddress = trackingBidderAddress[tokenId][i + 1];
+                if (bids[tokenId][currentAddress] != 0) {
+                    withDrawAll = false;
+                    break;
+                }
+            }
+
+            if (withDrawAll) {
+                idToMarketItem[tokenId].auction = false;
+            }
         } else {
             idToMarketItem[tokenId].owner = payable(seller);
             idToMarketItem[tokenId].sold = true;
@@ -419,5 +500,33 @@ contract NFTMarketplace is ERC721URIStorage {
         }
 
         // emit End(highestBidder, highestBid);
+    }
+
+    /* allows someone to resell a token they have purchased */
+    function reauctionToken(
+        uint256 tokenId,
+        uint256 price,
+        uint256 endTime
+    ) public payable {
+        require(
+            idToMarketItem[tokenId].owner == msg.sender,
+            "Only item owner can perform this operation"
+        );
+        require(
+            msg.value == listingPrice,
+            "Price must be equal to listing price"
+        );
+
+        idToMarketItem[tokenId].sold = false;
+        idToMarketItem[tokenId].price = price;
+        idToMarketItem[tokenId].seller = payable(msg.sender);
+        idToMarketItem[tokenId].owner = payable(address(this));
+        idToMarketItem[tokenId].highestBid = price;
+        idToMarketItem[tokenId].auction = true;
+        idToMarketItem[tokenId].endTime = endTime;
+        idToMarketItem[tokenId].ended = false;
+        _itemsSold.decrement();
+
+        _transfer(msg.sender, address(this), tokenId);
     }
 }
