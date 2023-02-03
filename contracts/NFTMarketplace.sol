@@ -12,7 +12,7 @@ contract NFTMarketplace is ERC721URIStorage {
     Counters.Counter private _tokenIds;
     Counters.Counter private _itemsSold;
 
-    uint256 listingPrice = 0.00025 ether;
+    uint256 listingPrice = 0.0000025 ether;
     address payable owner;
 
     mapping(uint256 => MarketItem) private idToMarketItem;
@@ -412,16 +412,14 @@ contract NFTMarketplace is ERC721URIStorage {
                 senderIndex = i + 1;
                 uint256 balance = bids[tokenId][msg.sender];
                 bids[tokenId][msg.sender] = 0;
+                require(balance > 0, "Already withdrawed");
                 payable(msg.sender).transfer(balance);
                 emit Withdraw(msg.sender, balance, true);
                 break;
             }
         }
 
-        if (senderIndex == 0) {
-            emit Withdraw(msg.sender, 0, false);
-            return;
-        }
+        require(senderIndex > 0, "Not bidder");
 
         /**
          * Check all bidder withdraw their bid

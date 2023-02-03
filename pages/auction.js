@@ -129,21 +129,28 @@ function Auction() {
   };
 
   const withDraw = async (tokenId) => {
-    const web3Modal = new Web3Modal();
-    const connection = await web3Modal.connect();
-    const provider = new ethers.providers.Web3Provider(connection);
-    const signer = provider.getSigner();
-    const contract = new ethers.Contract(
-      marketplaceAddress,
-      NFTMarketplace.abi,
-      signer
-    );
-    contract.on("Withdraw", (sender, amount, bidder) => {
-      console.log("Bidder check: ", bidder);
-    });
+    try {
+      const web3Modal = new Web3Modal();
+      const connection = await web3Modal.connect();
+      const provider = new ethers.providers.Web3Provider(connection);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(
+        marketplaceAddress,
+        NFTMarketplace.abi,
+        signer
+      );
 
-    const transaction = await contract.withdraw(tokenId);
-    await transaction.wait();
+      const transaction = await contract.withdraw(tokenId);
+      await transaction.wait();
+    } catch (err) {
+      if (err.message.indexOf("reason string 'Already withdrawed'") != -1) {
+        alert("Không thể rút tiền vì bạn đã rút rồi");
+      }
+
+      if (err.message.indexOf("reason string 'Not bidder'") != -1) {
+        alert("Không thể rút tiền vì bạn không tham gia đấu giá");
+      }
+    }
   };
 
   const endAuction = async (nft) => {

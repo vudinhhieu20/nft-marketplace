@@ -6,6 +6,8 @@ import { create } from "ipfs-http-client";
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
+import Moralis from "moralis";
+
 const client = create({ url: "http://127.0.0.1:5001/api/v0" });
 
 import { marketplaceAddress } from "../config";
@@ -13,7 +15,8 @@ import { marketplaceAddress } from "../config";
 import NFTMarketplace from "../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json";
 
 export default function CreateItem() {
-  const [fileUrl, setFileUrl] = useState(null);
+  const [fileUrl, setFileUrl] = useState();
+  const [file, setFile] = useState();
   const [price, setPrice] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -28,6 +31,12 @@ export default function CreateItem() {
     name: "",
     description: "",
   });
+
+  /**
+   * Upload image to local ipfs
+   *
+   * @param {event} e Event upload file
+   */
   async function onChange(e) {
     /* upload image to IPFS */
     const file = e.target.files[0];
@@ -42,6 +51,52 @@ export default function CreateItem() {
       console.log("Error uploading file: ", error);
     }
   }
+
+  /**
+   * Upload image to moralis ipfs
+   *
+   * @param {event} e Event upload file
+   */
+  async function storeNFT_moralis(e) {
+    const file = e.target.files[0];
+    let reader = new FileReader();
+    reader.onload = async (e) => {
+      console.log(e.target.result);
+      const content = e.target.result;
+      console.log(content);
+
+      try {
+        const abi = [
+          {
+            path: "NFT_marketplace/" + file.name,
+            content: content,
+          },
+        ];
+
+        if (!Moralis.Core.isStarted) {
+          await Moralis.start({
+            apiKey:
+              "h3X0tJfcyROr9h7n5IWcBd7mSP8MyoBiG10k4WCTAHomJJO2kHQgM3VJWr9NDkKI",
+          });
+        }
+
+        const response = await Moralis.EvmApi.ipfs.uploadFolder({
+          abi,
+        });
+        console.log(response?.result);
+        setFileUrl(response?.result[0].path);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    await reader.readAsDataURL(file);
+  }
+
+  /**
+   * Upload metadata to local ipfs
+   *
+   * @returns URL to metadata of image has stored in local ipfs
+   */
   async function uploadToIPFS() {
     const { name, description, price } = formInput;
     if (!name || !description || !price || !fileUrl) return;
@@ -61,6 +116,44 @@ export default function CreateItem() {
     }
   }
 
+  /**
+   * Upload metadata image to moralis IPFS
+   *
+   * @returns URL to metadata of image has stored in moralis IPFS
+   */
+  async function uploadToIPFS_moralis() {
+    const { name, description, price } = formInput;
+    if (!name || !description || !price || !fileUrl) return;
+
+    try {
+      const abi = [
+        {
+          path: "metadata.json",
+          content: {
+            name: name,
+            description: description,
+            image: fileUrl,
+          },
+        },
+      ];
+
+      if (!Moralis.Core.isStarted) {
+        await Moralis.start({
+          apiKey:
+            "h3X0tJfcyROr9h7n5IWcBd7mSP8MyoBiG10k4WCTAHomJJO2kHQgM3VJWr9NDkKI",
+        });
+      }
+
+      const response = await Moralis.EvmApi.ipfs.uploadFolder({
+        abi,
+      });
+      console.log(response?.toJSON());
+      return response?.toJSON()[0].path;
+    } catch (error) {
+      console.log("Error uploading file: ", error);
+    }
+  }
+
   async function listNFTForSale() {
     if (
       !formInput.name ||
@@ -75,7 +168,7 @@ export default function CreateItem() {
       alert("Thông tin sản phẩm không được để trống");
       return;
     }
-    const url = await uploadToIPFS();
+    const url = await uploadToIPFS_moralis();
     const web3Modal = new Web3Modal();
     const connection = await web3Modal.connect();
     const provider = new ethers.providers.Web3Provider(connection);
@@ -140,7 +233,12 @@ export default function CreateItem() {
             updateFormInput({ ...formInput, price: e.target.value })
           }
         />
-        <input type="file" name="Asset" className="my-4" onChange={onChange} />
+        <input
+          type="file"
+          name="Asset"
+          className="my-4"
+          onChange={storeNFT_moralis}
+        />
         {fileUrl && (
           <img
             className="rounded mt-4"
