@@ -40,7 +40,7 @@ typechain-types
 
 # Hardhat files
 cache
-artifacts
+# artifacts
 
 
 node_modules
@@ -52,5 +52,5 @@ typechain-types
 
 # Hardhat files
 cache
-artifacts
+# artifacts
 
