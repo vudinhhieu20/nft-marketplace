@@ -5,17 +5,10 @@ import axios from "axios";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import Web3Modal from "web3modal";
+import moment from "moment";
 
 import NFTMarketplace from "../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json";
 import { marketplaceAddress } from "../config";
-
-// const nfts = [
-//   {
-//     image: "",
-//     description: "Test description",
-//     price: "Test price",
-//   },
-// ];
 
 function Auction() {
   const [nfts, setNfts] = useState([]);
@@ -214,7 +207,10 @@ function Auction() {
                   ) : (
                     <div>
                       <p className="text-lg font-bold text-white">
-                        Thời gian kết thúc: {nft.endTime}
+                        Thời gian kết thúc:{" "}
+                        {moment(nft.endTime * 1000).format(
+                          "YYYY-MM-DD HH:mm:ss"
+                        )}
                       </p>
 
                       <p className="text-lg font-bold text-white">
