@@ -194,7 +194,7 @@ export default function CreateItem() {
     );
     await transaction.wait();
 
-    router.push("/");
+    checkAuction ? router.push("/auction") : router.push("/");
   }
 
   const createAuction = (e) => {

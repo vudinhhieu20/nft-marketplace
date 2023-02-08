@@ -61,7 +61,7 @@ export default function ResellNFT() {
       await transaction.wait();
     }
 
-    router.push("/");
+    checkAuction ? router.push("/auction") : router.push("/");
   }
 
   const createAuction = (e) => {
